@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">AmpMeChallenge</string>
+    <string name="facebook">Facebook API</string>
+    <string name="youtube">Youtube API</string>
+
+    <!-- used by the facebook api -->
+    <string name="facebook_app_id">1908947649321003</string>
+    <string name="fb_login_protocol_scheme">fb1908947649321003</string>
+</resources>
