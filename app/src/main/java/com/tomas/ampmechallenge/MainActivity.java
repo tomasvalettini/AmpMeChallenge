@@ -7,6 +7,7 @@ import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
 
 import com.facebook.CallbackManager;
@@ -18,11 +19,13 @@ import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
+import com.facebook.login.widget.LoginButton;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.OptionalPendingResult;
 import com.google.android.gms.common.api.ResultCallback;
@@ -39,11 +42,16 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements GraphRequest.Callback, GoogleApiClient.OnConnectionFailedListener {
     private static final String TAG = MainActivity.class.getName();
 
+    private static final int RC_SIGN_IN = 9001;
+
     RecyclerView musicList;
     CallbackManager callbackManager;
 
     List<String> musicians;
 
+    LoginButton loginButton;
+
+    SignInButton signInButton;
     GoogleApiClient mGoogleApiClient;
     private ProgressDialog mProgressDialog;
 
@@ -56,11 +64,13 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
         setContentView(R.layout.activity_main);
 
         // initializing class fields
+        loginButton = (LoginButton) findViewById(R.id.fb_login_button);
         musicList = (RecyclerView) findViewById(R.id.music_list);
         callbackManager = CallbackManager.Factory.create();
         musicians = new ArrayList<>();
 
-        LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+        loginButton.setReadPermissions(Arrays.asList("user_likes"));
+        loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
             public void onSuccess(LoginResult loginResult) {
                 // get likes from user.
@@ -78,10 +88,17 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
             }
         });
 
-        LoginManager.getInstance().logInWithReadPermissions(this, Arrays.asList("user_likes"));
+        signInButton = (SignInButton) findViewById(R.id.yt_login_button);
+        signInButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent signInIntent = Auth.GoogleSignInApi.getSignInIntent(mGoogleApiClient);
+                startActivityForResult(signInIntent, RC_SIGN_IN);
+            }
+        });
 
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-//                .requestEmail()
+                .requestEmail()
                 .requestScopes(new Scope("https://www.googleapis.com/auth/youtube.readonly"))
                 .build();
 
@@ -110,8 +127,14 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
-        callbackManager.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RC_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            handleSignInResult(result);
+        } else {
+            callbackManager.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     @Override
@@ -141,7 +164,7 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
 
                     // started a new thread since the "blockingConnect" method cannot execute in the
                     // main thread or the app crashes
-                    new Thread(new Runnable() {
+                    /*new Thread(new Runnable() {
                         @Override
                         public void run() {
                             // check if user is signed in to google (which he should)
@@ -181,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
                                 }
                             }
                         }
-                    }).start();
+                    }).start();*/
                 }
             }
 
@@ -231,3 +254,12 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
         }
     }
 }
+
+
+
+/*
+TODO:
+    - create booleans for each login and set it to true when they are logged in
+    - at the end of the signing in process (fb or yt) check if both are logged in and preform the fetching
+    - then check for silent sign-ins and perform the fetch if both are logged in from the start.
+ */
