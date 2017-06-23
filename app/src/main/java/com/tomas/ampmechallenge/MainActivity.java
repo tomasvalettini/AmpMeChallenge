@@ -8,6 +8,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.facebook.CallbackManager;
@@ -17,7 +18,6 @@ import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
 import com.facebook.HttpMethod;
-import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 import com.google.android.gms.auth.api.Auth;
@@ -27,8 +27,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.OptionalPendingResult;
-import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Scope;
 
 import org.json.JSONArray;
@@ -55,6 +53,9 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
     GoogleApiClient mGoogleApiClient;
     private ProgressDialog mProgressDialog;
 
+    boolean fbLoggedIn, ytLoggeIn;
+    private LoginResult fbLoginResult;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -64,6 +65,8 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
         setContentView(R.layout.activity_main);
 
         // initializing class fields
+        fbLoggedIn = false;
+        ytLoggeIn = false;
         loginButton = (LoginButton) findViewById(R.id.fb_login_button);
         musicList = (RecyclerView) findViewById(R.id.music_list);
         callbackManager = CallbackManager.Factory.create();
@@ -74,17 +77,23 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
             @Override
             public void onSuccess(LoginResult loginResult) {
                 // get likes from user.
-                fetchUserMusicLikes(loginResult, "/%s/music");
+                //fetchUserMusicLikes(loginResult, "/%s/music");
+                fbLoggedIn = true;
+                loginButton.setVisibility(View.GONE);
+
+                fbLoginResult = loginResult;
             }
 
             @Override
             public void onCancel() {
                 showToast("Facebook login cancelled...");
+                fbLoggedIn = false;
             }
 
             @Override
             public void onError(FacebookException error) {
                 showToast("An error occurred");
+                fbLoggedIn = false;
             }
         });
 
@@ -99,7 +108,7 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
 
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
-                .requestScopes(new Scope("https://www.googleapis.com/auth/youtube.readonly"))
+                .requestScopes(new Scope("https://www.googleapis.com/auth/youtube"))
                 .build();
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
@@ -161,50 +170,6 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
                     for (int i = 0; i < musicians.size(); i++) {
                         System.out.println(musicians.get(i));
                     }
-
-                    // started a new thread since the "blockingConnect" method cannot execute in the
-                    // main thread or the app crashes
-                    /*new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            // check if user is signed in to google (which he should)
-                            // the fetch playlist
-                            ConnectionResult connResult = mGoogleApiClient.blockingConnect();
-                            if (connResult.isSuccess()) {
-                                OptionalPendingResult<GoogleSignInResult> opr = Auth.GoogleSignInApi.silentSignIn(mGoogleApiClient);
-                                if (opr.isDone()) {
-                                    // If the user's cached credentials are valid, the OptionalPendingResult will be "done"
-                                    // and the GoogleSignInResult will be available instantly.
-                                    Log.d(TAG, "Got cached sign-in");
-                                    GoogleSignInResult result = opr.get();
-                                    handleSignInResult(result);
-                                } else {
-                                    // If the user has not previously signed in on this device or the sign-in has expired,
-                                    // this asynchronous branch will attempt to sign in the user silently.  Cross-device
-                                    // single sign-on will occur in this branch.
-                                    runOnUiThread(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            showProgressDialog();
-                                        }
-                                    });
-
-                                    opr.setResultCallback(new ResultCallback<GoogleSignInResult>() {
-                                        @Override
-                                        public void onResult(GoogleSignInResult googleSignInResult) {
-                                            runOnUiThread(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    hideProgressDialog();
-                                                }
-                                            });
-                                            handleSignInResult(googleSignInResult);
-                                        }
-                                    });
-                                }
-                            }
-                        }
-                    }).start();*/
                 }
             }
 
@@ -222,11 +187,22 @@ public class MainActivity extends AppCompatActivity implements GraphRequest.Call
         Log.d(TAG, "handleSignInResult:" + result.isSuccess());
         if (result.isSuccess()) {
             // Signed in successfully, show authenticated UI.
+            ytLoggeIn = true;
+
+            signInButton.setVisibility(View.GONE);
+
+            if (!fbLoggedIn) {
+                RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams)loginButton.getLayoutParams();
+                params.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+
+                loginButton.setLayoutParams(params); //causes layout update
+            }
+
             GoogleSignInAccount acct = result.getSignInAccount();
             System.out.println(acct.getDisplayName());
         } else {
             // Signed out, show unauthenticated UI.
-            // updateUI(false);
+            ytLoggeIn = false;
         }
     }
 
